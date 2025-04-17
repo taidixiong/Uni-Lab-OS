@@ -18,7 +18,7 @@ Uni-Lab支持Python格式的配置文件，它比YAML或JSON提供更多的灵�
 from dataclasses import dataclass
 
 # 配置类定义
-@dataclass
+
 class MQConfig:
     """MQTT 配置类"""
     lab_id: str = "YOUR_LAB_ID"
@@ -34,7 +34,7 @@ class MQConfig:
 MQTT配置用于连接消息队列服务，是Uni-Lab与云端通信的主要方式。
 
 ```python
-@dataclass
+
 class MQConfig:
     """MQTT 配置类"""
     lab_id: str = "7AAEDBEA"  # 实验室唯一标识
@@ -74,22 +74,18 @@ MQTT连接支持两种方式配置证书：
 配置ROS消息转换器需要加载的模块：
 
 ```python
-@dataclass
+
 class ROSConfig:
     """ROS模块配置"""
-    modules: list = None
-    
-    def __post_init__(self):
-        if self.modules is None:
-            self.modules = [
-                "std_msgs.msg",
-                "geometry_msgs.msg",
-                "control_msgs.msg",
-                "control_msgs.action",
-                "nav2_msgs.action",
-                "unilabos_msgs.msg",
-                "unilabos_msgs.action",
-            ]
+    modules = [
+        "std_msgs.msg",
+        "geometry_msgs.msg",
+        "control_msgs.msg",
+        "control_msgs.action",
+        "nav2_msgs.action",
+        "unilabos_msgs.msg",
+        "unilabos_msgs.action",
+    ]
 ```
 
 您可以根据需要添加其他ROS模块。
@@ -105,15 +101,6 @@ class ROSConfig:
 ```bash
 unilab --config path/to/your/config.py
 ```
-
-## 环境变量覆盖
-
-某些配置项可以通过环境变量进行覆盖，这在不同环境部署时特别有用：
-
-```bash
-# 设置环境变量覆盖配置
-export UNILAB_LAB_ID="YOUR_LAB_ID"
-export UNILAB_MQTT_BROKER="mqtt-broker-address"
 
 # 启动Uni-Lab
 python -m unilabos.app.main --config path/to/your/config.py

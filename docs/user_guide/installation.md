@@ -6,7 +6,7 @@
 
 ```shell
 mamba env create -f unilabos-<YOUR_OS>.yaml
-mamba activate ilab
+mamba activate unilab
 ```
 
 其中 `YOUR_OS` 是您的操作系统，可选值 `win64`, `linux-64`, `osx-64`, `osx-arm64`
