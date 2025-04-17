@@ -19,6 +19,12 @@ Uni-Lab 操作系统是一个用于实验室自动化的综合平台，旨在连
 - 灵活的配置系统
 - 支持多种实验协议
 
+## 文档
+
+详细文档可在以下位置找到:
+
+- [在线文档](https://readthedocs.dp.tech/Uni-Lab/v0.8.0/)
+
 ## 安装指南
 
 请先克隆此仓库:
@@ -59,13 +65,6 @@ conda env update --file unilabos-[YOUR_OS].yml -n 环境名
 ## 消息格式
 
 Uni-Lab-OS 使用预构建的 `unilabos_msgs` 进行系统通信。您可以在 [GitHub Releases](https://github.com/dptech-corp/Uni-Lab-OS/releases) 页面找到已构建的版本。
-
-## 文档
-
-详细文档可在以下位置找到:
-
-- [在线文档](https://readthedocs.dp.tech/Uni-Lab/v0.8.0/)
-- 本地文档位于 `docs/` 目录
 
 ## 许可证
 
