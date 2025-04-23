@@ -430,6 +430,15 @@ class BaseROS2DeviceNode(Node, Generic[T]):
                 self.lab_logger().info(f"同步执行动作 {ACTION}")
                 future = self._executor.submit(ACTION, **action_kwargs)
 
+                def _handle_future_exception(fut):
+                    try:
+                        fut.result()
+                    except Exception as e:
+                        error(f"同步任务 {ACTION.__name__} 报错了")
+                        error(traceback.format_exc())
+
+                future.add_done_callback(_handle_future_exception)
+
             action_type = action_value_mapping["type"]
             feedback_msg_types = action_type.Feedback.get_fields_and_field_types()
             result_msg_types = action_type.Result.get_fields_and_field_types()

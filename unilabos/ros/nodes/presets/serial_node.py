@@ -21,6 +21,7 @@ class ROS2SerialNode(BaseROS2DeviceNode):
             self.hardware_interface = Serial(baudrate=baudrate, port=port)
         except (OSError, SerialException) as e:
             # 因为还没调用父类初始化，无法使用日志，直接抛出异常
+            # print(f"Failed to connect to serial port {port} at {baudrate} baudrate.")
             raise RuntimeError(f"Failed to connect to serial port {port} at {baudrate} baudrate.") from e
 
         # 初始化BaseROS2DeviceNode，使用自身作为driver_instance
