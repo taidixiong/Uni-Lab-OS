@@ -58,6 +58,18 @@ def parse_args():
         default=None,
         help="配置文件路径，支持.py格式的Python配置文件",
     )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8002,
+        help="信息页web服务的启动端口",
+    )
+    parser.add_argument(
+        "--open_browser",
+        type=bool,
+        default=True,
+        help="是否在启动时打开信息页",
+    )
 
     return parser.parse_args()
 
@@ -84,6 +96,9 @@ def main():
     # 设置BasicConfig参数
     BasicConfig.is_host_mode = not args_dict.get("without_host", False)
     BasicConfig.slave_no_host = args_dict.get("slave_no_host", False)
+    machine_name = os.popen("hostname").read().strip()
+    machine_name = "".join([c if c.isalnum() or c == "_" else "_" for c in machine_name])
+    BasicConfig.machine_name = machine_name
 
     from unilabos.resources.graphio import (
         read_node_link_json,
@@ -151,7 +166,7 @@ def main():
         mqtt_client.start()
 
     start_backend(**args_dict)
-    start_server()
+    start_server(port=args_dict.get("port", 8002), open_browser=args_dict.get("open_browser", False))
 
 
 if __name__ == "__main__":

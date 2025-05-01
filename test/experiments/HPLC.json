@@ -5,7 +5,7 @@
             "name": "HPLC",
             "parent": null,
             "type": "device",
-            "class": "hplc",
+            "class": "hplc.agilent",
             "position": {
                 "x": 620.6111111111111,
                 "y": 171,
@@ -19,8 +19,8 @@
         },
         {
             "id": "BottlesRack3",
-            "name": "Revvity上样盘3",
-            "parent": "Revvity",
+            "name": "上样盘3",
+            "parent": "HPLC",
             "type": "plate",
             "class": null,
             "position": {
