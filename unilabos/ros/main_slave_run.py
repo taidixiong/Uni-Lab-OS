@@ -2,9 +2,13 @@ import copy
 import json
 import os
 import threading
+import time
 from typing import Optional, Dict, Any, List
 
 import rclpy
+from unilabos.ros.nodes.presets.joint_republisher import JointRepublisher
+from unilabos.ros.nodes.presets.resource_mesh_manager import ResourceMeshManager
+from unilabos.ros.nodes.resource_tracker import DeviceNodeResourceTracker
 from unilabos_msgs.msg import Resource  # type: ignore
 from unilabos_msgs.srv import ResourceAdd, SerialCommand  # type: ignore
 from rclpy.executors import MultiThreadedExecutor
@@ -40,17 +44,19 @@ def exit() -> None:
 
 def main(
     devices_config: Dict[str, Any] = {},
-    resources_config={},
+    resources_config: list=[],
     graph: Optional[Dict[str, Any]] = None,
     controllers_config: Dict[str, Any] = {},
     bridges: List[Any] = [],
-    args: List[str] = ["--log-level", "debug"],
+    visual: str = "disable",
+    resources_mesh_config: dict = {},
+    rclpy_init_args: List[str] = ["--log-level", "debug"],
     discovery_interval: float = 5.0,
 ) -> None:
     """主函数"""
-    rclpy.init(args=args)
-    rclpy.__executor = executor = MultiThreadedExecutor()
 
+    rclpy.init(args=rclpy_init_args)
+    executor = rclpy.__executor = MultiThreadedExecutor()
     # 创建主机节点
     host_node = HostNode(
         "host_node",
@@ -62,11 +68,26 @@ def main(
         discovery_interval,
     )
 
+    if visual != "disable":
+        resource_mesh_manager = ResourceMeshManager(
+            resources_mesh_config,
+            resources_config,
+            resource_tracker= DeviceNodeResourceTracker(),
+            device_id = 'resource_mesh_manager',
+        )
+        joint_republisher = JointRepublisher(
+            'joint_republisher',
+            DeviceNodeResourceTracker()
+        )
+
+        executor.add_node(resource_mesh_manager)
+        executor.add_node(joint_republisher)
+
     thread = threading.Thread(target=executor.spin, daemon=True, name="host_executor_thread")
     thread.start()
 
     while True:
-        input()
+        time.sleep(1)
 
 
 def slave(
@@ -75,11 +96,16 @@ def slave(
     graph: Optional[Dict[str, Any]] = None,
     controllers_config: Dict[str, Any] = {},
     bridges: List[Any] = [],
-    args: List[str] = ["--log-level", "debug"],
+    visual: str = "disable",
+    resources_mesh_config: dict = {},
+    rclpy_init_args: List[str] = ["--log-level", "debug"],
 ) -> None:
     """从节点函数"""
-    rclpy.init(args=args)
-    rclpy.__executor = executor = MultiThreadedExecutor()
+    if not rclpy.ok():
+        rclpy.init(args=rclpy_init_args)
+    executor = rclpy.__executor
+    if not executor:
+        executor = rclpy.__executor = MultiThreadedExecutor()
     devices_config_copy = copy.deepcopy(devices_config)
     for device_id, device_config in devices_config.items():
         d = initialize_device_from_dict(device_id, device_config)
@@ -94,6 +120,21 @@ def slave(
     n = Node(f"slaveMachine_{BasicConfig.machine_name}", parameter_overrides=[])
     executor.add_node(n)
 
+    if visual != "disable":
+        resource_mesh_manager = ResourceMeshManager(
+            resources_mesh_config,
+            resources_config,
+            resource_tracker= DeviceNodeResourceTracker(),
+            device_id = 'resource_mesh_manager',
+        )
+        joint_republisher = JointRepublisher(
+            'joint_republisher',
+            DeviceNodeResourceTracker()
+        )
+
+        executor.add_node(resource_mesh_manager)
+        executor.add_node(joint_republisher)
+        
     thread = threading.Thread(target=executor.spin, daemon=True, name="slave_executor_thread")
     thread.start()
 
@@ -112,7 +153,7 @@ def slave(
         logger.info(f"Slave node info updated.")
 
         rclient = n.create_client(ResourceAdd, "/resources/add")
-        rclient.wait_for_service()  # FIXME 可能一直等待，加一个参数
+        rclient.wait_for_service()
 
         request = ResourceAdd.Request()
         request.resources = [convert_to_ros_msg(Resource, resource) for resource in resources_config]
@@ -120,7 +161,7 @@ def slave(
         logger.info(f"Slave resource added.")
 
     while True:
-        input()
+        time.sleep(1)
 
 if __name__ == "__main__":
     main()

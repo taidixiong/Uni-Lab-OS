@@ -6,6 +6,7 @@
 """
 import asyncio
 import inspect
+import json
 import traceback
 from abc import abstractmethod
 from typing import Type, Any, Dict, Optional, TypeVar, Generic
@@ -218,12 +219,22 @@ class PyLabRobotCreator(DeviceClassCreator[T]):
                         logger.error(f"PyLabRobot反序列化失败: {deserialize_error}")
                         logger.error(f"PyLabRobot反序列化堆栈: {stack}")
 
-            return self.device_instance
+        return self.device_instance
 
     def post_create(self):
         if hasattr(self.device_instance, "setup") and asyncio.iscoroutinefunction(getattr(self.device_instance, "setup")):
             from unilabos.ros.nodes.base_device_node import ROS2DeviceNode
-            ROS2DeviceNode.run_async_func(getattr(self.device_instance, "setup")).add_done_callback(lambda x: logger.debug(f"PyLabRobot设备实例 {self.device_instance} 设置完成"))
+            def done_cb(*args):
+                logger.debug(f"PyLabRobot设备实例 {self.device_instance} 设置完成")
+                from unilabos.config.config import BasicConfig
+                if BasicConfig.vis_2d_enable:
+                    from pylabrobot.visualizer.visualizer import Visualizer
+                    vis = Visualizer(resource=self.device_instance, open_browser=True)
+                    def vis_done_cb(*args):
+                        logger.info(f"PyLabRobot设备实例开启了Visualizer {self.device_instance}")
+                    ROS2DeviceNode.run_async_func(vis.setup).add_done_callback(vis_done_cb)
+                    logger.debug(f"PyLabRobot设备实例提交开启Visualizer {self.device_instance}")
+            ROS2DeviceNode.run_async_func(getattr(self.device_instance, "setup")).add_done_callback(done_cb)
 
 
 class ProtocolNodeCreator(DeviceClassCreator[T]):

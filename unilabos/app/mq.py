@@ -1,5 +1,6 @@
 import json
 import time
+import traceback
 import uuid
 
 import paho.mqtt.client as mqtt
@@ -35,7 +36,8 @@ class MQTTClient:
         self.client.on_disconnect = self._on_disconnect
 
     def _on_log(self, client, userdata, level, buf):
-        logger.info(f"[MQTT] log: {buf}")
+        # logger.info(f"[MQTT] log: {buf}")
+        pass
 
     def _on_connect(self, client, userdata, flags, rc, properties=None):
         logger.info("[MQTT] Connected with result code " + str(rc))
@@ -54,6 +56,12 @@ class MQTTClient:
             logger.debug("Payload:", json.dumps(payload_json, indent=2, ensure_ascii=False))
             if msg.topic == f"labs/{MQConfig.lab_id}/job/start/":
                 logger.debug("job_add", type(payload_json), payload_json)
+                if "data" not in payload_json:
+                    payload_json["data"] = {}
+                if "action" in payload_json:
+                    payload_json["data"]["action"] = payload_json.pop("action")
+                if "action_kwargs" in payload_json:
+                    payload_json["data"]["action_kwargs"] = payload_json.pop("action_kwargs")
                 job_req = JobAddReq.model_validate(payload_json)
                 data = job_add(job_req)
                 return
@@ -61,8 +69,10 @@ class MQTTClient:
         except json.JSONDecodeError as e:
             logger.error(f"[MQTT] JSON 解析错误: {e}")
             logger.error(f"[MQTT] Raw message: {msg.payload}")
+            logger.error(traceback.format_exc())
         except Exception as e:
             logger.error(f"[MQTT] 处理消息时出错: {e}")
+            logger.error(traceback.format_exc())
 
     def _on_disconnect(self, client, userdata, rc, reasonCode=None, properties=None):
         if rc != 0:

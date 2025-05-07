@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import sys
@@ -20,7 +21,43 @@ class Registry:
         self.registry_paths = DEFAULT_PATHS.copy()  # 使用copy避免修改默认值
         if registry_paths:
             self.registry_paths.extend(registry_paths)
-        self.device_type_registry = {}
+        action_type = self._replace_type_with_class(
+            "ResourceCreateFromOuter", "host_node", f"动作 add_resource_from_outer"
+        )
+        schema = ros_action_to_json_schema(action_type)
+        self.device_type_registry = {
+            "host_node": {
+                "description": "UniLabOS主机节点",
+                "class": {
+                    "module": "unilabos.ros.nodes.presets.host_node",
+                    "type": "python",
+                    "status_types": {},
+                    "action_value_mappings": {
+                        "add_resource_from_outer": {
+                            "type": msg_converter_manager.search_class("ResourceCreateFromOuter"),
+                            "goal": {
+                                "resources": "resources",
+                                "device_ids": "device_ids",
+                                "bind_parent_ids": "bind_parent_ids",
+                                "bind_locations": "bind_locations",
+                                "other_calling_params": "other_calling_params",
+                            },
+                            "feedback": {},
+                            "result": {
+                                "success": "success"
+                            },
+                            "schema": schema
+                        }
+                    }
+                },
+                "schema": {
+                    "properties": {},
+                    "additionalProperties": False,
+                    "type": "object"
+                },
+                "file_path": "/"
+            }
+        }
         self.resource_type_registry = {}
         self._setup_called = False  # 跟踪setup是否已调用
         # 其他状态变量
@@ -107,6 +144,7 @@ class Registry:
             + f"total: {len(files)}"
         )
         current_device_number = len(self.device_type_registry) + 1
+        from unilabos.app.web.utils.action_utils import get_yaml_from_goal_type
         for i, file in enumerate(files):
             data = yaml.safe_load(open(file, encoding="utf-8"))
             if data:
@@ -131,6 +169,7 @@ class Registry:
                                     action_config["type"] = self._replace_type_with_class(
                                         action_config["type"], device_id, f"动作 {action_name}"
                                     )
+                                    action_config["goal_default"] = yaml.safe_load(io.StringIO(get_yaml_from_goal_type(action_config["type"].Goal)))
                                     action_config["schema"] = ros_action_to_json_schema(action_config["type"])
 
                 self.device_type_registry.update(data)

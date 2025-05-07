@@ -20,7 +20,6 @@ gripper.mock:
           position: position
           effort: torque
 
-
 gripper.misumi_rz:
   description: Misumi RZ gripper
   class:

@@ -1,19 +1,24 @@
 import argparse
+import asyncio
+import json
 import os
 import signal
 import sys
-import json
-import yaml
+import threading
+import time
 from copy import deepcopy
+
+import yaml
 
 # 首先添加项目根目录到路径
 current_dir = os.path.dirname(os.path.abspath(__file__))
-ilabos_dir = os.path.dirname(os.path.dirname(current_dir))
-if ilabos_dir not in sys.path:
-    sys.path.append(ilabos_dir)
+unilabos_dir = os.path.dirname(os.path.dirname(current_dir))
+if unilabos_dir not in sys.path:
+    sys.path.append(unilabos_dir)
 
 from unilabos.config.config import load_config, BasicConfig, _update_config_from_env
 from unilabos.utils.banner_print import print_status, print_unilab_banner
+from unilabos.device_mesh.resource_visalization import ResourceVisualization
 
 
 def parse_args():
@@ -65,12 +70,21 @@ def parse_args():
         help="信息页web服务的启动端口",
     )
     parser.add_argument(
-        "--open_browser",
-        type=bool,
-        default=True,
-        help="是否在启动时打开信息页",
+        "--disable_browser",
+        action='store_true',
+        help="是否在启动时关闭信息页",
     )
-
+    parser.add_argument(
+        "--2d_vis",
+        action='store_true',
+        help="是否在pylabrobot实例启动时，同时启动可视化",
+    )
+    parser.add_argument(
+        "--visual",
+        choices=["rviz", "web", "disable"],
+        default="disable",
+        help="选择可视化工具: rviz, web",
+    )
     return parser.parse_args()
 
 
@@ -101,6 +115,7 @@ def main():
     machine_name = os.popen("hostname").read().strip()
     machine_name = "".join([c if c.isalnum() or c == "_" else "_" for c in machine_name])
     BasicConfig.machine_name = machine_name
+    BasicConfig.vis_2d_enable = args_dict["2d_vis"]
 
     from unilabos.resources.graphio import (
         read_node_link_json,
@@ -121,6 +136,7 @@ def main():
     # 注册表
     build_registry(args_dict["registry_path"])
 
+    devices_and_resources = None
     if args_dict["graph"] is not None:
         import unilabos.resources.graphio as graph_res
         graph_res.physical_setup_graph = (
@@ -132,6 +148,7 @@ def main():
         args_dict["resources_config"] = initialize_resources(list(deepcopy(devices_and_resources).values()))
         args_dict["devices_config"] = dict_to_nested_dict(deepcopy(devices_and_resources), devices_only=False)
         # args_dict["resources_config"] = dict_to_tree(devices_and_resources, devices_only=False)
+
         args_dict["graph"] = graph_res.physical_setup_graph
     else:
         if args_dict["devices"] is None or args_dict["resources"] is None:
@@ -166,9 +183,28 @@ def main():
         signal.signal(signal.SIGINT, _exit)
         signal.signal(signal.SIGTERM, _exit)
         mqtt_client.start()
-
-    start_backend(**args_dict)
-    start_server(port=args_dict.get("port", 8002), open_browser=args_dict.get("open_browser", False))
+    args_dict["resources_mesh_config"] = {}
+    # web visiualize 2D
+    if args_dict["visual"] != "disable":
+        enable_rviz = args_dict["visual"] == "rviz"
+        if devices_and_resources is not None:
+            resource_visualization = ResourceVisualization(devices_and_resources, args_dict["resources_config"] ,enable_rviz=enable_rviz)
+            args_dict["resources_mesh_config"] = resource_visualization.resource_model
+            start_backend(**args_dict)
+            server_thread = threading.Thread(target=start_server, kwargs=dict(
+                open_browser=not args_dict["disable_browser"]
+            ))
+            server_thread.start()
+            asyncio.set_event_loop(asyncio.new_event_loop())
+            resource_visualization.start()
+            while True:
+                time.sleep(1)
+        else:
+            start_backend(**args_dict)
+            start_server(open_browser=not args_dict["disable_browser"])
+    else:
+        start_backend(**args_dict)
+        start_server(open_browser=not args_dict["disable_browser"])
 
 
 if __name__ == "__main__":
